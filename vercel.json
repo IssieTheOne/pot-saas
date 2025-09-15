@@ -1,0 +1,23 @@
+{
+  "framework": "nextjs",
+  "buildCommand": "npm run build",
+  "outputDirectory": ".next",
+  "installCommand": "npm install",
+  "devCommand": "npm run dev",
+  "env": {
+    "NEXT_PUBLIC_SUPABASE_URL": "@supabase-url",
+    "NEXT_PUBLIC_SUPABASE_ANON_KEY": "@supabase-anon-key",
+    "SUPABASE_SERVICE_ROLE_KEY": "@supabase-service-role-key",
+    "NEXT_PUBLIC_APP_URL": "@app-url",
+    "NEXT_PUBLIC_ENVIRONMENT": "@environment",
+    "CLOUDFLARE_R2_ACCOUNT_ID": "@r2-account-id",
+    "CLOUDFLARE_R2_ACCESS_KEY_ID": "@r2-access-key-id",
+    "CLOUDFLARE_R2_SECRET_ACCESS_KEY": "@r2-secret-access-key",
+    "CLOUDFLARE_R2_BUCKET_NAME": "@r2-bucket-name",
+    "CLOUDFLARE_R2_PUBLIC_URL": "@r2-public-url",
+    "CLOUDFLARE_R2_ENDPOINT": "@r2-endpoint",
+    "MAILERSEND_API_KEY": "@mailersend-api-key",
+    "MAILERSEND_FROM_EMAIL": "@mailersend-from-email",
+    "MAILERSEND_FROM_NAME": "@mailersend-from-name"
+  }
+}
