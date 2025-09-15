@@ -51,14 +51,49 @@ export async function GET(
     }
 
     // Get user's organization from the users table
-    const { data: userData, error: userDataError } = await supabase
+    let userData = null
+    const { data: initialUserData, error: userDataError } = await supabase
       .from('users')
       .select('organization_id')
       .eq('id', user.id)
       .single()
 
-    if (userDataError || !userData) {
-      return NextResponse.json({ error: 'User organization not found' }, { status: 400 })
+    if (userDataError || !initialUserData) {
+      // User not found in users table, try to sync them
+      if (userDataError?.code === 'PGRST116') { // Not found error
+        console.log('User not found in users table, attempting to sync...')
+        // Try to get organization_id from user metadata as fallback
+        const organizationId = user.user_metadata?.organization_id
+
+        if (organizationId) {
+          // Create the user record directly
+          const { data: newUser, error: createError } = await supabase
+            .from('users')
+            .insert({
+              id: user.id,
+              organization_id: organizationId,
+              email: user.email,
+              full_name: user.user_metadata?.full_name || user.email?.split('@')[0] || 'Unknown',
+              role: 'team_member',
+              is_active: true,
+              email_verified: user.email_confirmed_at ? true : false
+            })
+            .select()
+            .single()
+
+          if (!createError && newUser) {
+            userData = newUser
+          } else {
+            return NextResponse.json({ error: 'Failed to sync user account. Please contact support.' }, { status: 400 })
+          }
+        } else {
+          return NextResponse.json({ error: 'User account not properly set up. Please contact support.' }, { status: 400 })
+        }
+      } else {
+        return NextResponse.json({ error: 'User organization not found' }, { status: 400 })
+      }
+    } else {
+      userData = initialUserData
     }
 
     const { data: invoice, error } = await supabase
@@ -101,14 +136,49 @@ export async function PUT(
     }
 
     // Get user's organization from the users table
-    const { data: userData, error: userDataError } = await supabase
+    let userData = null
+    const { data: initialUserData, error: userDataError } = await supabase
       .from('users')
       .select('organization_id')
       .eq('id', user.id)
       .single()
 
-    if (userDataError || !userData) {
-      return NextResponse.json({ error: 'User organization not found' }, { status: 400 })
+    if (userDataError || !initialUserData) {
+      // User not found in users table, try to sync them
+      if (userDataError?.code === 'PGRST116') { // Not found error
+        console.log('User not found in users table, attempting to sync...')
+        // Try to get organization_id from user metadata as fallback
+        const organizationId = user.user_metadata?.organization_id
+
+        if (organizationId) {
+          // Create the user record directly
+          const { data: newUser, error: createError } = await supabase
+            .from('users')
+            .insert({
+              id: user.id,
+              organization_id: organizationId,
+              email: user.email,
+              full_name: user.user_metadata?.full_name || user.email?.split('@')[0] || 'Unknown',
+              role: 'team_member',
+              is_active: true,
+              email_verified: user.email_confirmed_at ? true : false
+            })
+            .select()
+            .single()
+
+          if (!createError && newUser) {
+            userData = newUser
+          } else {
+            return NextResponse.json({ error: 'Failed to sync user account. Please contact support.' }, { status: 400 })
+          }
+        } else {
+          return NextResponse.json({ error: 'User account not properly set up. Please contact support.' }, { status: 400 })
+        }
+      } else {
+        return NextResponse.json({ error: 'User organization not found' }, { status: 400 })
+      }
+    } else {
+      userData = initialUserData
     }
 
     const body = await request.json()
@@ -245,14 +315,49 @@ export async function DELETE(
     }
 
     // Get user's organization from the users table
-    const { data: userData, error: userDataError } = await supabase
+    let userData = null
+    const { data: initialUserData, error: userDataError } = await supabase
       .from('users')
       .select('organization_id')
       .eq('id', user.id)
       .single()
 
-    if (userDataError || !userData) {
-      return NextResponse.json({ error: 'User organization not found' }, { status: 400 })
+    if (userDataError || !initialUserData) {
+      // User not found in users table, try to sync them
+      if (userDataError?.code === 'PGRST116') { // Not found error
+        console.log('User not found in users table, attempting to sync...')
+        // Try to get organization_id from user metadata as fallback
+        const organizationId = user.user_metadata?.organization_id
+
+        if (organizationId) {
+          // Create the user record directly
+          const { data: newUser, error: createError } = await supabase
+            .from('users')
+            .insert({
+              id: user.id,
+              organization_id: organizationId,
+              email: user.email,
+              full_name: user.user_metadata?.full_name || user.email?.split('@')[0] || 'Unknown',
+              role: 'team_member',
+              is_active: true,
+              email_verified: user.email_confirmed_at ? true : false
+            })
+            .select()
+            .single()
+
+          if (!createError && newUser) {
+            userData = newUser
+          } else {
+            return NextResponse.json({ error: 'Failed to sync user account. Please contact support.' }, { status: 400 })
+          }
+        } else {
+          return NextResponse.json({ error: 'User account not properly set up. Please contact support.' }, { status: 400 })
+        }
+      } else {
+        return NextResponse.json({ error: 'User organization not found' }, { status: 400 })
+      }
+    } else {
+      userData = initialUserData
     }
 
     // Check if invoice exists and belongs to user's organization
