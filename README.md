@@ -53,16 +53,28 @@ pot-saas/
 │   ├── COMPLETENESS.md
 │   ├── CRUD.md
 │   ├── DATABASE.md
+│   ├── database-health-check.sql     # Quick database validation
 │   ├── database-schema.sql
+│   ├── comprehensive-crud-test.sql   # Full platform testing
+│   ├── cleanup-test-data.sql         # Test data removal
 │   ├── DEPLOYMENT.md
 │   ├── DESIGN.md
+│   ├── enhanced-database-schema.sql  # Complete production schema
 │   ├── FEATURES.md
 │   ├── fix-rls-policies.sql
+│   ├── fresh-database-setup.sql      # Clean database setup
+│   ├── database-migration.sql        # Migration for existing DBs
+│   ├── INTERNATIONALIZATION.md
 │   ├── MVP.md
+│   ├── PROGRESS.md
 │   ├── REQUIREMENTS.md
 │   ├── ROADMAP.md
+│   ├── r2-setup-guide.md
 │   ├── SETUP.md
-│   └── TECH_STACK.md
+│   ├── step-by-step-migration.sql
+│   ├── TECH_STACK.md
+│   ├── test-features.sql
+│   └── test-r2-integration.sql
 ├── src/                     # Source code
 ├── .env.example            # Environment template
 ├── .env.local              # Local environment (gitignored)
@@ -130,7 +142,49 @@ This will add missing columns/tables without deleting existing data.
 #### Option C: Manual Schema Review
 Review the complete schema in `docs/enhanced-database-schema.sql` and run individual statements as needed.
 
-### 4. Development
+### 5. Database Testing & Validation
+
+After setting up your database, use these scripts to validate everything is working correctly:
+
+#### Quick Health Check (Recommended)
+Run this first to verify your database is properly deployed without creating test data:
+```sql
+-- Copy and paste the contents of docs/database-health-check.sql
+-- into your Supabase SQL Editor and execute
+```
+✅ **What it checks:**
+- All 24 required tables exist (including feature_requests, feature_trials)
+- RLS policies are properly configured
+- 4+ database functions are available
+- 3+ useful views are created
+- Indexes are created
+- Basic CRUD operations work
+
+#### Comprehensive CRUD Testing
+For thorough testing of all platform features with sample data:
+```sql
+-- Copy and paste the contents of docs/comprehensive-crud-test.sql
+-- into your Supabase SQL Editor and execute
+```
+✅ **What it tests:**
+- User registration and authentication
+- Invoice creation, updates, and payments
+- Expense tracking and categorization
+- Document upload, versioning, and sharing
+- Team management and invitations
+- Notification system
+- Feature marketplace and trials
+- All CRUD operations across the platform
+
+#### Cleanup Test Data
+After running comprehensive tests, clean up the test data:
+```sql
+-- Copy and paste the contents of docs/cleanup-test-data.sql
+-- into your Supabase SQL Editor and execute
+```
+⚠️ **Note:** This removes all test data created by the comprehensive test script
+
+### 6. Development
 ```bash
 npm run dev
 # Visit http://localhost:3000

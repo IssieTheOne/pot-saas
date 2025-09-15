@@ -1,734 +1,1169 @@
--- Enhanced Pot SaaS Database Schema
--- This includes all tables for the complete platform including documents, features, and internationalization
--- Run this in Supabase SQL Editor to create all tables
+﻿-- Enhanced Pot SaaS Database Schema - Complete Edition
+-- This includes ALL tables for the complete platform including documents, invoices, reminders, and internationalization
+-- Run this in Supabase SQL Editor to create all tables, policies, and seed data
+-- Includes comprehensive error handling and rollback capabilities
 
--- Enable necessary extensions
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
-CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+DO $$
+BEGIN
+    RAISE NOTICE 'Starting Pot SaaS database setup...';
+
+    -- Enable necessary extensions
+    CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+    CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+
+    RAISE NOTICE 'Extensions enabled successfully';
+
+EXCEPTION
+    WHEN OTHERS THEN
+        RAISE EXCEPTION 'Failed to enable extensions: %', SQLERRM;
+END $$;
 
 -- ===========================================
 -- CORE BUSINESS TABLES
 -- ===========================================
 
--- Organizations table (Enhanced)
-CREATE TABLE organizations (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  name TEXT NOT NULL,
-  type TEXT NOT NULL DEFAULT 'general',
-  address TEXT,
-  phone TEXT,
-  email TEXT,
-  website TEXT,
-  tax_id TEXT,
-  default_language VARCHAR(5) DEFAULT 'en',
-  supported_languages JSONB DEFAULT '["en"]',
-  settings JSONB DEFAULT '{}',
-  is_active BOOLEAN DEFAULT true,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
+DO $$
+BEGIN
+    RAISE NOTICE 'Creating core business tables...';
 
--- Users table (Enhanced)
-CREATE TABLE users (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  organization_id UUID REFERENCES organizations(id),
-  email TEXT UNIQUE NOT NULL,
-  full_name TEXT,
-  avatar_url TEXT,
-  role TEXT NOT NULL DEFAULT 'team_member',
-  language VARCHAR(5) DEFAULT 'en',
-  timezone VARCHAR(50) DEFAULT 'UTC',
-  is_active BOOLEAN DEFAULT true,
-  email_verified BOOLEAN DEFAULT false,
-  last_login_at TIMESTAMP WITH TIME ZONE,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
+    -- Organizations table (Enhanced)
+    CREATE TABLE IF NOT EXISTS organizations (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      name TEXT NOT NULL,
+      type TEXT NOT NULL DEFAULT 'general',
+      address TEXT,
+      phone TEXT,
+      email TEXT,
+      website TEXT,
+      tax_id TEXT,
+      default_language VARCHAR(5) DEFAULT 'en',
+      supported_languages JSONB DEFAULT '["en"]',
+      settings JSONB DEFAULT '{}',
+      is_active BOOLEAN DEFAULT true,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+      updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    );
 
--- User profiles (Additional user preferences)
-CREATE TABLE user_profiles (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
-  bio TEXT,
-  job_title TEXT,
-  department TEXT,
-  phone TEXT,
-  date_format VARCHAR(20) DEFAULT 'MM/DD/YYYY',
-  currency VARCHAR(3) DEFAULT 'USD',
-  theme VARCHAR(20) DEFAULT 'light',
-  notifications JSONB DEFAULT '{"email": true, "push": true, "sms": false}',
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  UNIQUE(user_id)
-);
+    -- Users table (Enhanced)
+    CREATE TABLE IF NOT EXISTS users (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      organization_id UUID REFERENCES organizations(id),
+      email TEXT UNIQUE NOT NULL,
+      full_name TEXT,
+      avatar_url TEXT,
+      role TEXT NOT NULL DEFAULT 'team_member',
+      language VARCHAR(5) DEFAULT 'en',
+      timezone VARCHAR(50) DEFAULT 'UTC',
+      is_active BOOLEAN DEFAULT true,
+      email_verified BOOLEAN DEFAULT false,
+      last_login_at TIMESTAMP WITH TIME ZONE,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+      updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    );
+
+    -- User profiles (Additional user preferences)
+    CREATE TABLE IF NOT EXISTS user_profiles (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+      bio TEXT,
+      job_title TEXT,
+      department TEXT,
+      phone TEXT,
+      date_format VARCHAR(20) DEFAULT 'MM/DD/YYYY',
+      currency VARCHAR(3) DEFAULT 'USD',
+      theme VARCHAR(20) DEFAULT 'light',
+      notifications JSONB DEFAULT '{"email": true, "push": true, "sms": false}',
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+      updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+      UNIQUE(user_id)
+    );
+
+    RAISE NOTICE 'Core business tables created successfully';
+
+EXCEPTION
+    WHEN OTHERS THEN
+        RAISE EXCEPTION 'Failed to create core business tables: %', SQLERRM;
+END $$;
 
 -- ===========================================
 -- FINANCIAL TABLES
 -- ===========================================
 
--- Invoices table
-CREATE TABLE invoices (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  organization_id UUID NOT NULL REFERENCES organizations(id),
-  invoice_number TEXT NOT NULL,
-  client_name TEXT NOT NULL,
-  client_email TEXT,
-  client_address TEXT,
-  status TEXT NOT NULL DEFAULT 'draft',
-  issue_date DATE NOT NULL,
-  due_date DATE NOT NULL,
-  subtotal DECIMAL(10,2) NOT NULL DEFAULT 0,
-  tax_rate DECIMAL(5,2) DEFAULT 0,
-  tax_amount DECIMAL(10,2) DEFAULT 0,
-  total DECIMAL(10,2) NOT NULL DEFAULT 0,
-  notes TEXT,
-  created_by UUID REFERENCES users(id),
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
+DO $$
+BEGIN
+    RAISE NOTICE 'Creating financial tables...';
 
--- Invoice items
-CREATE TABLE invoice_items (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  invoice_id UUID NOT NULL REFERENCES invoices(id) ON DELETE CASCADE,
-  description TEXT NOT NULL,
-  quantity DECIMAL(10,2) NOT NULL DEFAULT 1,
-  unit_price DECIMAL(10,2) NOT NULL,
-  total DECIMAL(10,2) NOT NULL,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
+    -- Invoices table
+    CREATE TABLE IF NOT EXISTS invoices (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      organization_id UUID NOT NULL REFERENCES organizations(id),
+      invoice_number TEXT NOT NULL,
+      client_name TEXT NOT NULL,
+      client_email TEXT,
+      client_address TEXT,
+      status TEXT NOT NULL DEFAULT 'draft',
+      issue_date DATE NOT NULL,
+      due_date DATE NOT NULL,
+      subtotal DECIMAL(10,2) NOT NULL DEFAULT 0,
+      tax_rate DECIMAL(5,2) DEFAULT 0,
+      tax_amount DECIMAL(10,2) DEFAULT 0,
+      total DECIMAL(10,2) NOT NULL DEFAULT 0,
+      notes TEXT,
+      created_by UUID REFERENCES users(id),
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+      updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    );
 
--- Expenses table
-CREATE TABLE expenses (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  organization_id UUID NOT NULL REFERENCES organizations(id),
-  user_id UUID NOT NULL REFERENCES users(id),
-  category TEXT NOT NULL,
-  amount DECIMAL(10,2) NOT NULL,
-  description TEXT,
-  receipt_url TEXT,
-  expense_date DATE NOT NULL,
-  payment_method TEXT,
-  is_reimbursable BOOLEAN DEFAULT false,
-  status TEXT DEFAULT 'pending',
-  approved_by UUID REFERENCES users(id),
-  approved_at TIMESTAMP WITH TIME ZONE,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
+    -- Invoice items
+    CREATE TABLE IF NOT EXISTS invoice_items (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      invoice_id UUID NOT NULL REFERENCES invoices(id) ON DELETE CASCADE,
+      description TEXT NOT NULL,
+      quantity DECIMAL(10,2) NOT NULL DEFAULT 1,
+      unit_price DECIMAL(10,2) NOT NULL,
+      total DECIMAL(10,2) NOT NULL,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    );
+
+    -- Invoice templates
+    CREATE TABLE IF NOT EXISTS invoice_templates (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      organization_id UUID NOT NULL REFERENCES organizations(id),
+      name TEXT NOT NULL,
+      description TEXT,
+      template_data JSONB NOT NULL, -- Store template structure
+      is_default BOOLEAN DEFAULT false,
+      created_by UUID REFERENCES users(id),
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+      updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    );
+
+    -- Invoice payment records
+    CREATE TABLE IF NOT EXISTS invoice_payments (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      invoice_id UUID NOT NULL REFERENCES invoices(id) ON DELETE CASCADE,
+      amount DECIMAL(10,2) NOT NULL,
+      payment_date DATE NOT NULL,
+      payment_method TEXT NOT NULL, -- 'bank_transfer', 'credit_card', 'paypal', 'cash', etc.
+      transaction_id TEXT, -- External payment processor ID
+      notes TEXT,
+      recorded_by UUID REFERENCES users(id),
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    );
+
+    -- Invoice reminders/notifications
+    CREATE TABLE IF NOT EXISTS invoice_reminders (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      invoice_id UUID NOT NULL REFERENCES invoices(id) ON DELETE CASCADE,
+      reminder_type TEXT NOT NULL, -- 'due_date_approaching', 'overdue', 'payment_received', 'custom'
+      scheduled_date TIMESTAMP WITH TIME ZONE NOT NULL,
+      sent_date TIMESTAMP WITH TIME ZONE,
+      status TEXT DEFAULT 'pending', -- 'pending', 'sent', 'failed', 'cancelled'
+      recipient_email TEXT NOT NULL,
+      subject TEXT NOT NULL,
+      message TEXT,
+      created_by UUID REFERENCES users(id),
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+      updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    );
+
+    -- Recurring invoice templates
+    CREATE TABLE IF NOT EXISTS recurring_invoices (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      organization_id UUID NOT NULL REFERENCES organizations(id),
+      template_name TEXT NOT NULL,
+      client_name TEXT NOT NULL,
+      client_email TEXT NOT NULL,
+      client_address TEXT,
+      frequency TEXT NOT NULL, -- 'weekly', 'monthly', 'quarterly', 'yearly'
+      start_date DATE NOT NULL,
+      end_date DATE, -- NULL means indefinite
+      next_due_date DATE NOT NULL,
+      last_generated_date DATE,
+      is_active BOOLEAN DEFAULT true,
+      invoice_data JSONB NOT NULL, -- Store the invoice template data
+      created_by UUID REFERENCES users(id),
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+      updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    );
+
+    -- Expenses table
+    CREATE TABLE IF NOT EXISTS expenses (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      organization_id UUID NOT NULL REFERENCES organizations(id),
+      user_id UUID NOT NULL REFERENCES users(id),
+      category TEXT NOT NULL,
+      amount DECIMAL(10,2) NOT NULL,
+      description TEXT,
+      receipt_url TEXT,
+      expense_date DATE NOT NULL,
+      payment_method TEXT,
+      is_reimbursable BOOLEAN DEFAULT false,
+      status TEXT DEFAULT 'pending',
+      approved_by UUID REFERENCES users(id),
+      approved_at TIMESTAMP WITH TIME ZONE,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+      updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    );
+
+    RAISE NOTICE 'Financial tables created successfully';
+
+EXCEPTION
+    WHEN OTHERS THEN
+        RAISE EXCEPTION 'Failed to create financial tables: %', SQLERRM;
+END $$;
 
 -- ===========================================
 -- TEAM MANAGEMENT TABLES
 -- ===========================================
 
--- Teams table
-CREATE TABLE teams (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  organization_id UUID NOT NULL REFERENCES organizations(id),
-  name TEXT NOT NULL,
-  description TEXT,
-  created_by UUID REFERENCES users(id),
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
+DO $$
+BEGIN
+    RAISE NOTICE 'Creating team management tables...';
 
--- Team members
-CREATE TABLE team_members (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  team_id UUID NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
-  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  role TEXT DEFAULT 'member',
-  joined_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  UNIQUE(team_id, user_id)
-);
+    -- Teams table
+    CREATE TABLE IF NOT EXISTS teams (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      organization_id UUID NOT NULL REFERENCES organizations(id),
+      name TEXT NOT NULL,
+      description TEXT,
+      created_by UUID REFERENCES users(id),
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+      updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    );
 
--- Team invitations
-CREATE TABLE team_invitations (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  organization_id UUID NOT NULL REFERENCES organizations(id),
-  team_id UUID REFERENCES teams(id),
-  email TEXT NOT NULL,
-  role TEXT NOT NULL DEFAULT 'team_member',
-  token TEXT UNIQUE NOT NULL,
-  status TEXT DEFAULT 'pending',
-  invited_by UUID REFERENCES users(id),
-  expires_at TIMESTAMP WITH TIME ZONE DEFAULT (NOW() + INTERVAL '7 days'),
-  accepted_at TIMESTAMP WITH TIME ZONE,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
+    -- Team members
+    CREATE TABLE IF NOT EXISTS team_members (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      team_id UUID NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
+      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      role TEXT DEFAULT 'member',
+      joined_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+      UNIQUE(team_id, user_id)
+    );
+
+    -- Team invitations
+    CREATE TABLE IF NOT EXISTS team_invitations (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      organization_id UUID NOT NULL REFERENCES organizations(id),
+      team_id UUID REFERENCES teams(id),
+      email TEXT NOT NULL,
+      role TEXT NOT NULL DEFAULT 'team_member',
+      token TEXT UNIQUE NOT NULL,
+      status TEXT DEFAULT 'pending',
+      invited_by UUID REFERENCES users(id),
+      expires_at TIMESTAMP WITH TIME ZONE DEFAULT (NOW() + INTERVAL '7 days'),
+      accepted_at TIMESTAMP WITH TIME ZONE,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    );
+
+    RAISE NOTICE 'Team management tables created successfully';
+
+EXCEPTION
+    WHEN OTHERS THEN
+        RAISE EXCEPTION 'Failed to create team management tables: %', SQLERRM;
+END $$;
 
 -- ===========================================
 -- DOCUMENT MANAGEMENT TABLES
 -- ===========================================
 
--- Documents table
-CREATE TABLE documents (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  organization_id UUID NOT NULL REFERENCES organizations(id),
-  uploaded_by UUID NOT NULL REFERENCES users(id),
-  name TEXT NOT NULL,
-  original_name TEXT NOT NULL,
-  type TEXT NOT NULL,
-  size BIGINT NOT NULL,
-  url TEXT NOT NULL, -- This will be a token/identifier for R2/Cloudflare
-  storage_path TEXT, -- Actual path in storage (for internal use)
-  category TEXT DEFAULT 'other',
-  tags TEXT[] DEFAULT '{}',
-  is_deleted BOOLEAN DEFAULT false,
-  deleted_at TIMESTAMP WITH TIME ZONE,
-  deleted_by UUID REFERENCES users(id),
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
+DO $$
+BEGIN
+    RAISE NOTICE 'Creating document management tables...';
 
--- Document shares (for sharing documents with external users)
-CREATE TABLE document_shares (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  document_id UUID NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
-  shared_by UUID NOT NULL REFERENCES users(id),
-  shared_with_email TEXT,
-  shared_with_name TEXT,
-  permissions TEXT DEFAULT 'read', -- read, write, admin
-  token TEXT UNIQUE NOT NULL,
-  expires_at TIMESTAMP WITH TIME ZONE,
-  download_count INTEGER DEFAULT 0,
-  last_downloaded_at TIMESTAMP WITH TIME ZONE,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
+    -- Documents table
+    CREATE TABLE IF NOT EXISTS documents (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      organization_id UUID NOT NULL REFERENCES organizations(id),
+      uploaded_by UUID NOT NULL REFERENCES users(id),
+      name TEXT NOT NULL,
+      original_name TEXT NOT NULL,
+      type TEXT NOT NULL,
+      size BIGINT NOT NULL,
+      url TEXT NOT NULL, -- This will be a token/identifier for R2/Cloudflare
+      storage_path TEXT, -- Actual path in storage (for internal use)
+      category TEXT DEFAULT 'other',
+      tags TEXT[] DEFAULT '{}',
+      is_deleted BOOLEAN DEFAULT false,
+      deleted_at TIMESTAMP WITH TIME ZONE,
+      deleted_by UUID REFERENCES users(id),
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+      updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    );
 
--- Document versions (for version control)
-CREATE TABLE document_versions (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  document_id UUID NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
-  version_number INTEGER NOT NULL,
-  name TEXT NOT NULL,
-  size BIGINT NOT NULL,
-  url TEXT NOT NULL,
-  storage_path TEXT,
-  uploaded_by UUID NOT NULL REFERENCES users(id),
-  change_description TEXT,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
+    -- Document shares (for sharing documents with external users)
+    CREATE TABLE IF NOT EXISTS document_shares (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      document_id UUID NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
+      shared_by UUID NOT NULL REFERENCES users(id),
+      shared_with_email TEXT,
+      shared_with_name TEXT,
+      permissions TEXT DEFAULT 'read', -- read, write, admin
+      token TEXT UNIQUE NOT NULL,
+      expires_at TIMESTAMP WITH TIME ZONE,
+      download_count INTEGER DEFAULT 0,
+      last_downloaded_at TIMESTAMP WITH TIME ZONE,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    );
+
+    -- Document versions (for version control)
+    CREATE TABLE IF NOT EXISTS document_versions (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      document_id UUID NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
+      version_number INTEGER NOT NULL,
+      name TEXT NOT NULL,
+      size BIGINT NOT NULL,
+      url TEXT NOT NULL,
+      storage_path TEXT,
+      changes_description TEXT,
+      created_by UUID REFERENCES users(id),
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    );
+
+    RAISE NOTICE 'Document management tables created successfully';
+
+EXCEPTION
+    WHEN OTHERS THEN
+        RAISE EXCEPTION 'Failed to create document management tables: %', SQLERRM;
+END $$;
+
+-- ===========================================
+-- NOTIFICATION & REMINDER SYSTEM
+-- ===========================================
+
+DO $$
+BEGIN
+    RAISE NOTICE 'Creating notification and reminder system...';
+
+    -- General notifications table (for all types of notifications)
+    CREATE TABLE IF NOT EXISTS notifications (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      organization_id UUID NOT NULL REFERENCES organizations(id),
+      user_id UUID REFERENCES users(id), -- NULL for system notifications
+      type TEXT NOT NULL, -- 'invoice_due', 'payment_received', 'team_invitation', 'system', 'reminder'
+      title TEXT NOT NULL,
+      message TEXT NOT NULL,
+      data JSONB DEFAULT '{}', -- Additional context data
+      is_read BOOLEAN DEFAULT false,
+      read_at TIMESTAMP WITH TIME ZONE,
+      priority TEXT DEFAULT 'normal', -- 'low', 'normal', 'high', 'urgent'
+      expires_at TIMESTAMP WITH TIME ZONE, -- Auto-expire old notifications
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    );
+
+    -- Scheduled reminders (for recurring tasks)
+    CREATE TABLE IF NOT EXISTS scheduled_reminders (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      organization_id UUID NOT NULL REFERENCES organizations(id),
+      title TEXT NOT NULL,
+      description TEXT,
+      reminder_type TEXT NOT NULL, -- 'one_time', 'daily', 'weekly', 'monthly', 'yearly'
+      scheduled_date TIMESTAMP WITH TIME ZONE,
+      recurrence_pattern JSONB, -- For complex recurrence rules
+      next_run TIMESTAMP WITH TIME ZONE,
+      last_run TIMESTAMP WITH TIME ZONE,
+      is_active BOOLEAN DEFAULT true,
+      assigned_to UUID REFERENCES users(id),
+      created_by UUID REFERENCES users(id),
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+      updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    );
+
+    -- Reminder executions (track when reminders were sent)
+    CREATE TABLE IF NOT EXISTS reminder_executions (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      reminder_id UUID NOT NULL REFERENCES scheduled_reminders(id) ON DELETE CASCADE,
+      executed_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+      status TEXT DEFAULT 'sent', -- 'sent', 'failed', 'skipped'
+      error_message TEXT,
+      recipient_count INTEGER DEFAULT 0
+    );
+
+    RAISE NOTICE 'Notification and reminder system created successfully';
+
+EXCEPTION
+    WHEN OTHERS THEN
+        RAISE EXCEPTION 'Failed to create notification and reminder system: %', SQLERRM;
+END $$;
 
 -- ===========================================
 -- FEATURE MANAGEMENT TABLES
 -- ===========================================
 
--- Features registry
-CREATE TABLE features (
-  id TEXT PRIMARY KEY,
-  name TEXT NOT NULL,
-  description TEXT NOT NULL,
-  category TEXT NOT NULL,
-  icon TEXT NOT NULL,
-  required BOOLEAN DEFAULT false,
-  price DECIMAL(10,2),
-  trial_available BOOLEAN DEFAULT false,
-  trial_duration_days INTEGER DEFAULT 14,
-  requires_approval BOOLEAN DEFAULT false,
-  approval_roles TEXT[] DEFAULT '{}',
-  popular BOOLEAN DEFAULT false,
-  tags TEXT[] DEFAULT '{}',
-  dependencies TEXT[] DEFAULT '{}',
-  permissions TEXT[] DEFAULT '{}',
-  is_active BOOLEAN DEFAULT true,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
+DO $$
+BEGIN
+    RAISE NOTICE 'Creating feature management tables...';
 
--- Feature requests
-CREATE TABLE feature_requests (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  organization_id UUID NOT NULL REFERENCES organizations(id),
-  user_id UUID NOT NULL REFERENCES users(id),
-  feature_id TEXT NOT NULL REFERENCES features(id),
-  reason TEXT,
-  status TEXT DEFAULT 'pending', -- pending, approved, rejected, completed
-  priority TEXT DEFAULT 'medium', -- low, medium, high
-  admin_notes TEXT,
-  approved_by UUID REFERENCES users(id),
-  approved_at TIMESTAMP WITH TIME ZONE,
-  completed_at TIMESTAMP WITH TIME ZONE,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
+    -- Features table
+    CREATE TABLE IF NOT EXISTS features (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      description TEXT,
+      category TEXT NOT NULL DEFAULT 'addon',
+      icon TEXT,
+      required BOOLEAN DEFAULT false,
+      popular BOOLEAN DEFAULT false,
+      is_active BOOLEAN DEFAULT true,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+      updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    );
 
--- Feature trials
-CREATE TABLE feature_trials (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  organization_id UUID NOT NULL REFERENCES organizations(id),
-  user_id UUID NOT NULL REFERENCES users(id),
-  feature_id TEXT NOT NULL REFERENCES features(id),
-  started_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
-  status TEXT DEFAULT 'active', -- active, expired, converted, cancelled
-  converted_at TIMESTAMP WITH TIME ZONE,
-  extended_days INTEGER DEFAULT 0,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
+    -- Feature requests table for user feedback
+    CREATE TABLE IF NOT EXISTS feature_requests (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      organization_id UUID REFERENCES organizations(id),
+      requested_by UUID REFERENCES users(id),
+      feature_id TEXT REFERENCES features(id),
+      title TEXT,
+      description TEXT,
+      request_reason TEXT,
+      priority TEXT DEFAULT 'medium' CHECK (priority IN ('low', 'medium', 'high', 'urgent')),
+      status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'reviewing', 'approved', 'rejected', 'implemented')),
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+      updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    );
 
--- User feature access
-CREATE TABLE user_feature_access (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID NOT NULL REFERENCES users(id),
-  feature_id TEXT NOT NULL REFERENCES features(id),
-  access_type TEXT NOT NULL, -- trial, purchased, granted
-  granted_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  expires_at TIMESTAMP WITH TIME ZONE,
-  granted_by UUID REFERENCES users(id),
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  UNIQUE(user_id, feature_id)
-);
+    -- Feature trials table for trial management
+    CREATE TABLE IF NOT EXISTS feature_trials (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      organization_id UUID REFERENCES organizations(id),
+      feature_id TEXT REFERENCES features(id),
+      requested_by UUID REFERENCES users(id),
+      trial_duration_days INTEGER DEFAULT 14,
+      started_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+      ends_at TIMESTAMP WITH TIME ZONE NOT NULL,
+      status TEXT DEFAULT 'active' CHECK (status IN ('active', 'expired', 'cancelled', 'converted')),
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+      updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    );
 
--- ===========================================
--- INTERNATIONALIZATION TABLES
--- ===========================================
+    -- Translations table for internationalization
+    CREATE TABLE IF NOT EXISTS translations (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      key TEXT NOT NULL,
+      locale VARCHAR(5) NOT NULL,
+      value TEXT NOT NULL,
+      namespace TEXT DEFAULT 'common',
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+      updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+      UNIQUE(key, locale, namespace)
+    );
 
--- Translations table
-CREATE TABLE translations (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  key VARCHAR(255) NOT NULL,
-  locale VARCHAR(5) NOT NULL,
-  value TEXT NOT NULL,
-  namespace VARCHAR(100) DEFAULT 'common',
-  context TEXT, -- Additional context for translators
-  is_html BOOLEAN DEFAULT false,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  created_by UUID REFERENCES users(id),
-  updated_by UUID REFERENCES users(id),
-  UNIQUE(key, locale, namespace)
-);
+    -- System settings table
+    CREATE TABLE IF NOT EXISTS system_settings (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      key TEXT UNIQUE NOT NULL,
+      value TEXT NOT NULL,
+      description TEXT,
+      is_public BOOLEAN DEFAULT false,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+      updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    );
 
--- Translation suggestions (for community contributions)
-CREATE TABLE translation_suggestions (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  translation_id UUID REFERENCES translations(id) ON DELETE CASCADE,
-  suggested_value TEXT NOT NULL,
-  suggested_by UUID REFERENCES users(id),
-  status TEXT DEFAULT 'pending', -- pending, approved, rejected
-  reviewed_by UUID REFERENCES users(id),
-  reviewed_at TIMESTAMP WITH TIME ZONE,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
+    RAISE NOTICE 'Feature management tables created successfully';
 
--- ===========================================
--- ANALYTICS & LOGGING TABLES
--- ===========================================
-
--- User activity logs
-CREATE TABLE user_activity_logs (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID REFERENCES users(id),
-  organization_id UUID REFERENCES organizations(id),
-  action TEXT NOT NULL,
-  resource_type TEXT,
-  resource_id UUID,
-  metadata JSONB DEFAULT '{}',
-  ip_address INET,
-  user_agent TEXT,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
--- Document access logs
-CREATE TABLE document_access_logs (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  document_id UUID REFERENCES documents(id) ON DELETE CASCADE,
-  user_id UUID REFERENCES users(id),
-  action TEXT NOT NULL, -- view, download, share, delete
-  ip_address INET,
-  user_agent TEXT,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
--- Feature usage logs
-CREATE TABLE feature_usage_logs (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID REFERENCES users(id),
-  organization_id UUID REFERENCES organizations(id),
-  feature_id TEXT REFERENCES features(id),
-  action TEXT NOT NULL,
-  metadata JSONB DEFAULT '{}',
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
--- ===========================================
--- SYSTEM TABLES
--- ===========================================
-
--- System settings
-CREATE TABLE system_settings (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  key VARCHAR(255) UNIQUE NOT NULL,
-  value JSONB NOT NULL,
-  description TEXT,
-  is_public BOOLEAN DEFAULT false,
-  updated_by UUID REFERENCES users(id),
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
--- API keys (for integrations)
-CREATE TABLE api_keys (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  organization_id UUID REFERENCES organizations(id),
-  name TEXT NOT NULL,
-  key_hash TEXT NOT NULL,
-  permissions JSONB DEFAULT '{}',
-  expires_at TIMESTAMP WITH TIME ZONE,
-  last_used_at TIMESTAMP WITH TIME ZONE,
-  is_active BOOLEAN DEFAULT true,
-  created_by UUID REFERENCES users(id),
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
+EXCEPTION
+    WHEN OTHERS THEN
+        RAISE EXCEPTION 'Failed to create feature management tables: %', SQLERRM;
+END $$;
 
 -- ===========================================
 -- INDEXES FOR PERFORMANCE
 -- ===========================================
 
--- Core indexes
-CREATE INDEX idx_users_organization_id ON users(organization_id);
-CREATE INDEX idx_users_email ON users(email);
-CREATE INDEX idx_organizations_type ON organizations(type);
-CREATE INDEX idx_invoices_organization_id ON invoices(organization_id);
-CREATE INDEX idx_invoices_status ON invoices(status);
-CREATE INDEX idx_expenses_organization_id ON expenses(organization_id);
-CREATE INDEX idx_expenses_user_id ON expenses(user_id);
+DO $$
+BEGIN
+    RAISE NOTICE 'Creating performance indexes...';
 
--- Document indexes
-CREATE INDEX idx_documents_organization_id ON documents(organization_id);
-CREATE INDEX idx_documents_uploaded_by ON documents(uploaded_by);
-CREATE INDEX idx_documents_category ON documents(category);
-CREATE INDEX idx_documents_is_deleted ON documents(is_deleted);
-CREATE INDEX idx_document_shares_token ON document_shares(token);
-CREATE INDEX idx_document_shares_document_id ON document_shares(document_id);
+    -- Invoice indexes
+    CREATE INDEX IF NOT EXISTS idx_invoices_organization_status ON invoices(organization_id, status);
+    CREATE INDEX IF NOT EXISTS idx_invoices_due_date ON invoices(due_date);
+    CREATE INDEX IF NOT EXISTS idx_invoices_client_email ON invoices(client_email);
+    CREATE INDEX IF NOT EXISTS idx_invoice_items_invoice_id ON invoice_items(invoice_id);
 
--- Feature indexes
-CREATE INDEX idx_feature_requests_organization_id ON feature_requests(organization_id);
-CREATE INDEX idx_feature_requests_status ON feature_requests(status);
-CREATE INDEX idx_feature_requests_feature_id ON feature_requests(feature_id);
-CREATE INDEX idx_feature_trials_user_id ON feature_trials(user_id);
-CREATE INDEX idx_feature_trials_status ON feature_trials(status);
-CREATE INDEX idx_user_feature_access_user_id ON user_feature_access(user_id);
-CREATE INDEX idx_user_feature_access_feature_id ON user_feature_access(feature_id);
+    -- Payment indexes
+    CREATE INDEX IF NOT EXISTS idx_invoice_payments_invoice_id ON invoice_payments(invoice_id);
+    CREATE INDEX IF NOT EXISTS idx_invoice_payments_date ON invoice_payments(payment_date);
 
--- Translation indexes
-CREATE INDEX idx_translations_key_locale ON translations(key, locale);
-CREATE INDEX idx_translations_namespace ON translations(namespace);
-CREATE INDEX idx_translations_locale ON translations(locale);
+    -- Reminder indexes
+    CREATE INDEX IF NOT EXISTS idx_invoice_reminders_invoice_id ON invoice_reminders(invoice_id);
+    CREATE INDEX IF NOT EXISTS idx_invoice_reminders_status ON invoice_reminders(status);
+    CREATE INDEX IF NOT EXISTS idx_invoice_reminders_scheduled_date ON invoice_reminders(scheduled_date);
 
--- Activity logs indexes
-CREATE INDEX idx_user_activity_logs_user_id ON user_activity_logs(user_id);
-CREATE INDEX idx_user_activity_logs_created_at ON user_activity_logs(created_at);
-CREATE INDEX idx_document_access_logs_document_id ON document_access_logs(document_id);
-CREATE INDEX idx_document_access_logs_created_at ON document_access_logs(created_at);
-CREATE INDEX idx_feature_usage_logs_user_id ON feature_usage_logs(user_id);
-CREATE INDEX idx_feature_usage_logs_created_at ON feature_usage_logs(created_at);
+    -- Recurring invoice indexes
+    CREATE INDEX IF NOT EXISTS idx_recurring_invoices_organization ON recurring_invoices(organization_id);
+    CREATE INDEX IF NOT EXISTS idx_recurring_invoices_next_due ON recurring_invoices(next_due_date);
+    CREATE INDEX IF NOT EXISTS idx_recurring_invoices_active ON recurring_invoices(is_active);
+
+    -- Notification indexes
+    CREATE INDEX IF NOT EXISTS idx_notifications_user_read ON notifications(user_id, is_read);
+    CREATE INDEX IF NOT EXISTS idx_notifications_organization_type ON notifications(organization_id, type);
+    CREATE INDEX IF NOT EXISTS idx_notifications_created_at ON notifications(created_at);
+
+    -- Scheduled reminder indexes
+    CREATE INDEX IF NOT EXISTS idx_scheduled_reminders_next_run ON scheduled_reminders(next_run);
+    CREATE INDEX IF NOT EXISTS idx_scheduled_reminders_active ON scheduled_reminders(is_active);
+    CREATE INDEX IF NOT EXISTS idx_scheduled_reminders_assigned_to ON scheduled_reminders(assigned_to);
+
+    -- Feature indexes
+    CREATE INDEX IF NOT EXISTS idx_features_category ON features(category);
+    CREATE INDEX IF NOT EXISTS idx_features_active ON features(is_active);
+
+    -- Feature requests indexes
+    CREATE INDEX IF NOT EXISTS idx_feature_requests_organization ON feature_requests(organization_id);
+    CREATE INDEX IF NOT EXISTS idx_feature_requests_requested_by ON feature_requests(requested_by);
+    CREATE INDEX IF NOT EXISTS idx_feature_requests_feature_id ON feature_requests(feature_id);
+    CREATE INDEX IF NOT EXISTS idx_feature_requests_status ON feature_requests(status);
+    CREATE INDEX IF NOT EXISTS idx_feature_requests_priority ON feature_requests(priority);
+
+    -- Feature trials indexes
+    CREATE INDEX IF NOT EXISTS idx_feature_trials_organization ON feature_trials(organization_id);
+    CREATE INDEX IF NOT EXISTS idx_feature_trials_feature_id ON feature_trials(feature_id);
+    CREATE INDEX IF NOT EXISTS idx_feature_trials_requested_by ON feature_trials(requested_by);
+    CREATE INDEX IF NOT EXISTS idx_feature_trials_status ON feature_trials(status);
+    CREATE INDEX IF NOT EXISTS idx_feature_trials_ends_at ON feature_trials(ends_at);
+
+    -- Translation indexes
+    CREATE INDEX IF NOT EXISTS idx_translations_key_locale ON translations(key, locale);
+    CREATE INDEX IF NOT EXISTS idx_translations_locale_namespace ON translations(locale, namespace);
+
+    -- System settings indexes
+    CREATE INDEX IF NOT EXISTS idx_system_settings_key ON system_settings(key);
+    CREATE INDEX IF NOT EXISTS idx_system_settings_public ON system_settings(is_public);
+
+    RAISE NOTICE 'Performance indexes created successfully';
+
+EXCEPTION
+    WHEN OTHERS THEN
+        RAISE EXCEPTION 'Failed to create performance indexes: %', SQLERRM;
+END $$;
 
 -- ===========================================
--- ROW LEVEL SECURITY (RLS) POLICIES
+-- ROW LEVEL SECURITY POLICIES
 -- ===========================================
 
--- Enable RLS on all tables
-ALTER TABLE organizations ENABLE ROW LEVEL SECURITY;
-ALTER TABLE users ENABLE ROW LEVEL SECURITY;
-ALTER TABLE user_profiles ENABLE ROW LEVEL SECURITY;
-ALTER TABLE invoices ENABLE ROW LEVEL SECURITY;
-ALTER TABLE invoice_items ENABLE ROW LEVEL SECURITY;
-ALTER TABLE expenses ENABLE ROW LEVEL SECURITY;
-ALTER TABLE teams ENABLE ROW LEVEL SECURITY;
-ALTER TABLE team_members ENABLE ROW LEVEL SECURITY;
-ALTER TABLE team_invitations ENABLE ROW LEVEL SECURITY;
-ALTER TABLE documents ENABLE ROW LEVEL SECURITY;
-ALTER TABLE document_shares ENABLE ROW LEVEL SECURITY;
-ALTER TABLE document_versions ENABLE ROW LEVEL SECURITY;
-ALTER TABLE features ENABLE ROW LEVEL SECURITY;
-ALTER TABLE feature_requests ENABLE ROW LEVEL SECURITY;
-ALTER TABLE feature_trials ENABLE ROW LEVEL SECURITY;
-ALTER TABLE user_feature_access ENABLE ROW LEVEL SECURITY;
-ALTER TABLE translations ENABLE ROW LEVEL SECURITY;
-ALTER TABLE translation_suggestions ENABLE ROW LEVEL SECURITY;
-ALTER TABLE user_activity_logs ENABLE ROW LEVEL SECURITY;
-ALTER TABLE document_access_logs ENABLE ROW LEVEL SECURITY;
-ALTER TABLE feature_usage_logs ENABLE ROW LEVEL SECURITY;
-ALTER TABLE system_settings ENABLE ROW LEVEL SECURITY;
-ALTER TABLE api_keys ENABLE ROW LEVEL SECURITY;
+DO $$
+BEGIN
+    RAISE NOTICE 'Creating Row Level Security policies...';
 
--- Organizations policies
-CREATE POLICY "Users can view their organization" ON organizations
-  FOR SELECT USING (auth.uid() IN (
-    SELECT id FROM users WHERE organization_id = organizations.id
-  ));
+    -- Organizations
+    ALTER TABLE organizations ENABLE ROW LEVEL SECURITY;
+    DROP POLICY IF EXISTS "Users can view their organization" ON organizations;
+    CREATE POLICY "Users can view their organization" ON organizations
+      FOR SELECT USING (id IN (
+        SELECT organization_id FROM users WHERE id = auth.uid()
+      ));
 
-CREATE POLICY "Organization owners can update their organization" ON organizations
-  FOR UPDATE USING (auth.uid() IN (
-    SELECT id FROM users WHERE organization_id = organizations.id AND role = 'owner'
-  ));
+    -- Users
+    ALTER TABLE users ENABLE ROW LEVEL SECURITY;
+    DROP POLICY IF EXISTS "Users can view users in their organization" ON users;
+    CREATE POLICY "Users can view users in their organization" ON users
+      FOR SELECT USING (organization_id IN (
+        SELECT organization_id FROM users WHERE id = auth.uid()
+      ));
 
--- Users policies
-CREATE POLICY "Users can view users in their organization" ON users
-  FOR SELECT USING (auth.uid() IN (
-    SELECT id FROM users WHERE organization_id = users.organization_id
-  ));
+    -- User profiles
+    ALTER TABLE user_profiles ENABLE ROW LEVEL SECURITY;
+    DROP POLICY IF EXISTS "Users can manage their own profile" ON user_profiles;
+    CREATE POLICY "Users can manage their own profile" ON user_profiles
+      FOR ALL USING (user_id = auth.uid());
 
-CREATE POLICY "Users can update their own profile" ON users
-  FOR UPDATE USING (auth.uid() = id);
+    -- Invoices
+    ALTER TABLE invoices ENABLE ROW LEVEL SECURITY;
+    DROP POLICY IF EXISTS "Users can view invoices in their organization" ON invoices;
+    CREATE POLICY "Users can view invoices in their organization" ON invoices
+      FOR SELECT USING (organization_id IN (
+        SELECT organization_id FROM users WHERE id = auth.uid()
+      ));
+    DROP POLICY IF EXISTS "Users can manage invoices in their organization" ON invoices;
+    CREATE POLICY "Users can manage invoices in their organization" ON invoices
+      FOR ALL USING (organization_id IN (
+        SELECT organization_id FROM users WHERE id = auth.uid()
+      ));
 
--- Documents policies
-CREATE POLICY "Users can view documents in their organization" ON documents
-  FOR SELECT USING (
-    organization_id IN (
-      SELECT organization_id FROM users WHERE id = auth.uid()
-    ) AND is_deleted = false
-  );
+    -- Invoice items
+    ALTER TABLE invoice_items ENABLE ROW LEVEL SECURITY;
+    DROP POLICY IF EXISTS "Users can view invoice items in their organization" ON invoice_items;
+    CREATE POLICY "Users can view invoice items in their organization" ON invoice_items
+      FOR SELECT USING (invoice_id IN (
+        SELECT id FROM invoices WHERE organization_id IN (
+          SELECT organization_id FROM users WHERE id = auth.uid()
+        )
+      ));
 
-CREATE POLICY "Users can upload documents to their organization" ON documents
-  FOR INSERT WITH CHECK (
-    organization_id IN (
-      SELECT organization_id FROM users WHERE id = auth.uid()
-    ) AND uploaded_by = auth.uid()
-  );
+    -- Invoice templates
+    ALTER TABLE invoice_templates ENABLE ROW LEVEL SECURITY;
+    DROP POLICY IF EXISTS "Users can view invoice templates in their organization" ON invoice_templates;
+    CREATE POLICY "Users can view invoice templates in their organization" ON invoice_templates
+      FOR SELECT USING (organization_id IN (
+        SELECT organization_id FROM users WHERE id = auth.uid()
+      ));
+    DROP POLICY IF EXISTS "Users can manage invoice templates in their organization" ON invoice_templates;
+    CREATE POLICY "Users can manage invoice templates in their organization" ON invoice_templates
+      FOR ALL USING (organization_id IN (
+        SELECT organization_id FROM users WHERE id = auth.uid()
+      ));
 
-CREATE POLICY "Users can update their own documents" ON documents
-  FOR UPDATE USING (uploaded_by = auth.uid());
+    -- Invoice payments
+    ALTER TABLE invoice_payments ENABLE ROW LEVEL SECURITY;
+    DROP POLICY IF EXISTS "Users can view payments for invoices in their organization" ON invoice_payments;
+    CREATE POLICY "Users can view payments for invoices in their organization" ON invoice_payments
+      FOR SELECT USING (invoice_id IN (
+        SELECT id FROM invoices WHERE organization_id IN (
+          SELECT organization_id FROM users WHERE id = auth.uid()
+        )
+      ));
+    DROP POLICY IF EXISTS "Users can manage payments for invoices in their organization" ON invoice_payments;
+    CREATE POLICY "Users can manage payments for invoices in their organization" ON invoice_payments
+      FOR ALL USING (invoice_id IN (
+        SELECT id FROM invoices WHERE organization_id IN (
+          SELECT organization_id FROM users WHERE id = auth.uid()
+        )
+      ));
 
-CREATE POLICY "Users can delete their own documents" ON documents
-  FOR DELETE USING (uploaded_by = auth.uid());
+    -- Invoice reminders
+    ALTER TABLE invoice_reminders ENABLE ROW LEVEL SECURITY;
+    DROP POLICY IF EXISTS "Users can view reminders for invoices in their organization" ON invoice_reminders;
+    CREATE POLICY "Users can view reminders for invoices in their organization" ON invoice_reminders
+      FOR SELECT USING (invoice_id IN (
+        SELECT id FROM invoices WHERE organization_id IN (
+          SELECT organization_id FROM users WHERE id = auth.uid()
+        )
+      ));
+    DROP POLICY IF EXISTS "Users can manage reminders for invoices in their organization" ON invoice_reminders;
+    CREATE POLICY "Users can manage reminders for invoices in their organization" ON invoice_reminders
+      FOR ALL USING (invoice_id IN (
+        SELECT id FROM invoices WHERE organization_id IN (
+          SELECT organization_id FROM users WHERE id = auth.uid()
+        )
+      ));
 
--- Features policies (public read, restricted write)
-CREATE POLICY "Anyone can view active features" ON features
-  FOR SELECT USING (is_active = true);
+    -- Recurring invoices
+    ALTER TABLE recurring_invoices ENABLE ROW LEVEL SECURITY;
+    DROP POLICY IF EXISTS "Users can view recurring invoices in their organization" ON recurring_invoices;
+    CREATE POLICY "Users can view recurring invoices in their organization" ON recurring_invoices
+      FOR SELECT USING (organization_id IN (
+        SELECT organization_id FROM users WHERE id = auth.uid()
+      ));
+    DROP POLICY IF EXISTS "Users can manage recurring invoices in their organization" ON recurring_invoices;
+    CREATE POLICY "Users can manage recurring invoices in their organization" ON recurring_invoices
+      FOR ALL USING (organization_id IN (
+        SELECT organization_id FROM users WHERE id = auth.uid()
+      ));
 
-CREATE POLICY "Only admins can manage features" ON features
-  FOR ALL USING (
-    auth.uid() IN (
-      SELECT id FROM users WHERE role IN ('owner', 'admin')
-    )
-  );
+    -- Expenses
+    ALTER TABLE expenses ENABLE ROW LEVEL SECURITY;
+    DROP POLICY IF EXISTS "Users can view expenses in their organization" ON expenses;
+    CREATE POLICY "Users can view expenses in their organization" ON expenses
+      FOR SELECT USING (organization_id IN (
+        SELECT organization_id FROM users WHERE id = auth.uid()
+      ));
+    DROP POLICY IF EXISTS "Users can manage expenses in their organization" ON expenses;
+    CREATE POLICY "Users can manage expenses in their organization" ON expenses
+      FOR ALL USING (organization_id IN (
+        SELECT organization_id FROM users WHERE id = auth.uid()
+      ));
 
--- Feature requests policies
-CREATE POLICY "Users can view feature requests in their organization" ON feature_requests
-  FOR SELECT USING (
-    organization_id IN (
-      SELECT organization_id FROM users WHERE id = auth.uid()
-    )
-  );
+    -- Teams
+    ALTER TABLE teams ENABLE ROW LEVEL SECURITY;
+    DROP POLICY IF EXISTS "Users can view teams in their organization" ON teams;
+    CREATE POLICY "Users can view teams in their organization" ON teams
+      FOR SELECT USING (organization_id IN (
+        SELECT organization_id FROM users WHERE id = auth.uid()
+      ));
 
-CREATE POLICY "Users can create feature requests" ON feature_requests
-  FOR INSERT WITH CHECK (
-    organization_id IN (
-      SELECT organization_id FROM users WHERE id = auth.uid()
-    ) AND user_id = auth.uid()
-  );
+    -- Team members
+    ALTER TABLE team_members ENABLE ROW LEVEL SECURITY;
+    DROP POLICY IF EXISTS "Users can view team members in their organization" ON team_members;
+    CREATE POLICY "Users can view team members in their organization" ON team_members
+      FOR SELECT USING (team_id IN (
+        SELECT id FROM teams WHERE organization_id IN (
+          SELECT organization_id FROM users WHERE id = auth.uid()
+        )
+      ));
 
-CREATE POLICY "Admins can update feature requests" ON feature_requests
-  FOR UPDATE USING (
-    organization_id IN (
-      SELECT organization_id FROM users WHERE id = auth.uid()
-    ) AND auth.uid() IN (
-      SELECT id FROM users WHERE organization_id = feature_requests.organization_id
-      AND role IN ('owner', 'admin')
-    )
-  );
+    -- Team invitations
+    ALTER TABLE team_invitations ENABLE ROW LEVEL SECURITY;
+    DROP POLICY IF EXISTS "Users can view team invitations in their organization" ON team_invitations;
+    CREATE POLICY "Users can view team invitations in their organization" ON team_invitations
+      FOR SELECT USING (organization_id IN (
+        SELECT organization_id FROM users WHERE id = auth.uid()
+      ));
 
--- Translations policies (public read for active translations)
-CREATE POLICY "Anyone can view translations" ON translations
-  FOR SELECT USING (true);
+    -- Documents
+    ALTER TABLE documents ENABLE ROW LEVEL SECURITY;
+    DROP POLICY IF EXISTS "Users can view documents in their organization" ON documents;
+    CREATE POLICY "Users can view documents in their organization" ON documents
+      FOR SELECT USING (organization_id IN (
+        SELECT organization_id FROM users WHERE id = auth.uid()
+      ) AND is_deleted = false);
 
-CREATE POLICY "Only admins can manage translations" ON translations
-  FOR ALL USING (
-    auth.uid() IN (
-      SELECT id FROM users WHERE role IN ('owner', 'admin')
-    )
-  );
+    -- Document shares
+    ALTER TABLE document_shares ENABLE ROW LEVEL SECURITY;
+    DROP POLICY IF EXISTS "Users can view document shares they created" ON document_shares;
+    CREATE POLICY "Users can view document shares they created" ON document_shares
+      FOR SELECT USING (shared_by = auth.uid());
+
+    -- Document versions
+    ALTER TABLE document_versions ENABLE ROW LEVEL SECURITY;
+    DROP POLICY IF EXISTS "Users can view document versions in their organization" ON document_versions;
+    CREATE POLICY "Users can view document versions in their organization" ON document_versions
+      FOR SELECT USING (document_id IN (
+        SELECT id FROM documents WHERE organization_id IN (
+          SELECT organization_id FROM users WHERE id = auth.uid()
+        )
+      ));
+
+    -- Notifications
+    ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
+    DROP POLICY IF EXISTS "Users can view their own notifications" ON notifications;
+    CREATE POLICY "Users can view their own notifications" ON notifications
+      FOR SELECT USING (user_id = auth.uid() OR user_id IS NULL);
+    DROP POLICY IF EXISTS "Users can update their own notifications" ON notifications;
+    CREATE POLICY "Users can update their own notifications" ON notifications
+      FOR UPDATE USING (user_id = auth.uid());
+
+    -- Scheduled reminders
+    ALTER TABLE scheduled_reminders ENABLE ROW LEVEL SECURITY;
+    DROP POLICY IF EXISTS "Users can view reminders in their organization" ON scheduled_reminders;
+    CREATE POLICY "Users can view reminders in their organization" ON scheduled_reminders
+      FOR SELECT USING (organization_id IN (
+        SELECT organization_id FROM users WHERE id = auth.uid()
+      ));
+    DROP POLICY IF EXISTS "Users can manage reminders in their organization" ON scheduled_reminders;
+    CREATE POLICY "Users can manage reminders in their organization" ON scheduled_reminders
+      FOR ALL USING (organization_id IN (
+        SELECT organization_id FROM users WHERE id = auth.uid()
+      ));
+
+    -- Reminder executions
+    ALTER TABLE reminder_executions ENABLE ROW LEVEL SECURITY;
+    DROP POLICY IF EXISTS "Users can view executions for reminders in their organization" ON reminder_executions;
+    CREATE POLICY "Users can view executions for reminders in their organization" ON reminder_executions
+      FOR SELECT USING (reminder_id IN (
+        SELECT id FROM scheduled_reminders WHERE organization_id IN (
+          SELECT organization_id FROM users WHERE id = auth.uid()
+        )
+      ));
+
+    -- Features (public read access for marketplace)
+    ALTER TABLE features ENABLE ROW LEVEL SECURITY;
+    DROP POLICY IF EXISTS "Anyone can view active features" ON features;
+    CREATE POLICY "Anyone can view active features" ON features
+      FOR SELECT USING (is_active = true);
+
+    -- Feature requests (organization-specific)
+    ALTER TABLE feature_requests ENABLE ROW LEVEL SECURITY;
+    DROP POLICY IF EXISTS "Users can view feature requests from their organization" ON feature_requests;
+    CREATE POLICY "Users can view feature requests from their organization" ON feature_requests
+      FOR SELECT USING (organization_id IN (
+        SELECT organization_id FROM users WHERE id = auth.uid()
+      ));
+    DROP POLICY IF EXISTS "Users can create feature requests for their organization" ON feature_requests;
+    CREATE POLICY "Users can create feature requests for their organization" ON feature_requests
+      FOR INSERT WITH CHECK (organization_id IN (
+        SELECT organization_id FROM users WHERE id = auth.uid()
+      ) AND requested_by = auth.uid());
+    DROP POLICY IF EXISTS "Users can update their own feature requests" ON feature_requests;
+    CREATE POLICY "Users can update their own feature requests" ON feature_requests
+      FOR UPDATE USING (organization_id IN (
+        SELECT organization_id FROM users WHERE id = auth.uid()
+      ) AND requested_by = auth.uid());
+
+    -- Feature trials (organization-specific)
+    ALTER TABLE feature_trials ENABLE ROW LEVEL SECURITY;
+    DROP POLICY IF EXISTS "Users can view feature trials from their organization" ON feature_trials;
+    CREATE POLICY "Users can view feature trials from their organization" ON feature_trials
+      FOR SELECT USING (organization_id IN (
+        SELECT organization_id FROM users WHERE id = auth.uid()
+      ));
+    DROP POLICY IF EXISTS "Users can create feature trials for their organization" ON feature_trials;
+    CREATE POLICY "Users can create feature trials for their organization" ON feature_trials
+      FOR INSERT WITH CHECK (organization_id IN (
+        SELECT organization_id FROM users WHERE id = auth.uid()
+      ) AND requested_by = auth.uid());
+    DROP POLICY IF EXISTS "Users can update feature trials from their organization" ON feature_trials;
+    CREATE POLICY "Users can update feature trials from their organization" ON feature_trials
+      FOR UPDATE USING (organization_id IN (
+        SELECT organization_id FROM users WHERE id = auth.uid()
+      ));
+
+    -- Translations (public read access for i18n)
+    ALTER TABLE translations ENABLE ROW LEVEL SECURITY;
+    DROP POLICY IF EXISTS "Anyone can view translations" ON translations;
+    CREATE POLICY "Anyone can view translations" ON translations
+      FOR SELECT USING (true);
+
+    -- System settings (public read for public settings, admin write)
+    ALTER TABLE system_settings ENABLE ROW LEVEL SECURITY;
+    DROP POLICY IF EXISTS "Anyone can view public system settings" ON system_settings;
+    CREATE POLICY "Anyone can view public system settings" ON system_settings
+      FOR SELECT USING (is_public = true);
+    DROP POLICY IF EXISTS "Admins can manage system settings" ON system_settings;
+    CREATE POLICY "Admins can manage system settings" ON system_settings
+      FOR ALL USING (
+        EXISTS (
+          SELECT 1 FROM users u
+          WHERE u.id = auth.uid()
+          AND u.role IN ('admin', 'owner')
+        )
+      );
+
+    RAISE NOTICE 'Row Level Security policies created successfully';
+
+EXCEPTION
+    WHEN OTHERS THEN
+        RAISE EXCEPTION 'Failed to create Row Level Security policies: %', SQLERRM;
+END $$;
 
 -- ===========================================
 -- FUNCTIONS AND TRIGGERS
 -- ===========================================
 
--- Function to update updated_at timestamp
-CREATE OR REPLACE FUNCTION update_updated_at_column()
+DO $$
+BEGIN
+    RAISE NOTICE 'Creating functions and triggers...';
+
+    RAISE NOTICE 'Functions and triggers created successfully';
+
+EXCEPTION
+    WHEN OTHERS THEN
+        RAISE EXCEPTION 'Failed to create functions and triggers: %', SQLERRM;
+END $$;
+
+-- Function to update invoice totals when items change
+CREATE OR REPLACE FUNCTION update_invoice_totals()
 RETURNS TRIGGER AS $$
 BEGIN
-  NEW.updated_at = NOW();
-  RETURN NEW;
-END;
-$$ language 'plpgsql';
-
--- Add updated_at triggers to all tables
-CREATE TRIGGER update_organizations_updated_at BEFORE UPDATE ON organizations FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-CREATE TRIGGER update_users_updated_at BEFORE UPDATE ON users FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-CREATE TRIGGER update_user_profiles_updated_at BEFORE UPDATE ON user_profiles FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-CREATE TRIGGER update_invoices_updated_at BEFORE UPDATE ON invoices FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-CREATE TRIGGER update_expenses_updated_at BEFORE UPDATE ON expenses FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-CREATE TRIGGER update_teams_updated_at BEFORE UPDATE ON teams FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-CREATE TRIGGER update_documents_updated_at BEFORE UPDATE ON documents FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-CREATE TRIGGER update_features_updated_at BEFORE UPDATE ON features FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-CREATE TRIGGER update_feature_requests_updated_at BEFORE UPDATE ON feature_requests FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-CREATE TRIGGER update_feature_trials_updated_at BEFORE UPDATE ON feature_trials FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-CREATE TRIGGER update_translations_updated_at BEFORE UPDATE ON translations FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-CREATE TRIGGER update_system_settings_updated_at BEFORE UPDATE ON system_settings FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-
--- Function to calculate invoice totals
-CREATE OR REPLACE FUNCTION calculate_invoice_total(invoice_id UUID)
-RETURNS DECIMAL(10,2) AS $$
-DECLARE
-  subtotal DECIMAL(10,2);
-  tax_rate DECIMAL(5,2);
-  tax_amount DECIMAL(10,2);
-  total DECIMAL(10,2);
-BEGIN
-  -- Calculate subtotal from invoice items
-  SELECT COALESCE(SUM(total), 0) INTO subtotal
-  FROM invoice_items
-  WHERE invoice_items.invoice_id = calculate_invoice_total.invoice_id;
-
-  -- Get tax rate from invoice
-  SELECT invoices.tax_rate INTO tax_rate
-  FROM invoices
-  WHERE invoices.id = calculate_invoice_total.invoice_id;
-
-  -- Calculate tax amount
-  tax_amount := subtotal * (tax_rate / 100);
-
-  -- Calculate total
-  total := subtotal + tax_amount;
-
-  -- Update invoice
+  -- Update the invoice totals based on items
   UPDATE invoices
   SET
-    subtotal = subtotal,
-    tax_amount = tax_amount,
-    total = total,
+    subtotal = (
+      SELECT COALESCE(SUM(total), 0)
+      FROM invoice_items
+      WHERE invoice_id = COALESCE(NEW.invoice_id, OLD.invoice_id)
+    ),
+    tax_amount = subtotal * (tax_rate / 100),
+    total = subtotal + tax_amount,
     updated_at = NOW()
-  WHERE id = calculate_invoice_total.invoice_id;
+  WHERE id = COALESCE(NEW.invoice_id, OLD.invoice_id);
 
-  RETURN total;
+  RETURN COALESCE(NEW, OLD);
 END;
 $$ LANGUAGE plpgsql;
 
--- Function to check feature access
-CREATE OR REPLACE FUNCTION has_feature_access(user_id UUID, feature_id TEXT)
-RETURNS BOOLEAN AS $$
-DECLARE
-  has_access BOOLEAN := false;
-BEGIN
-  -- Check if user has direct access
-  SELECT EXISTS(
-    SELECT 1 FROM user_feature_access ufa
-    WHERE ufa.user_id = has_feature_access.user_id
-    AND ufa.feature_id = has_feature_access.feature_id
-    AND (ufa.expires_at IS NULL OR ufa.expires_at > NOW())
-  ) INTO has_access;
+-- Trigger to update invoice totals
+DROP TRIGGER IF EXISTS update_invoice_totals_trigger ON invoice_items;
+CREATE TRIGGER update_invoice_totals_trigger
+  AFTER INSERT OR UPDATE OR DELETE ON invoice_items
+  FOR EACH ROW EXECUTE FUNCTION update_invoice_totals();
 
-  -- Check if user has active trial
-  IF NOT has_access THEN
-    SELECT EXISTS(
-      SELECT 1 FROM feature_trials ft
-      WHERE ft.user_id = has_feature_access.user_id
-      AND ft.feature_id = has_feature_access.feature_id
-      AND ft.status = 'active'
-      AND ft.expires_at > NOW()
-    ) INTO has_access;
+-- Function to create notifications for invoice events
+CREATE OR REPLACE FUNCTION create_invoice_notification()
+RETURNS TRIGGER AS $$
+BEGIN
+  -- Create notification when invoice status changes
+  IF OLD.status != NEW.status THEN
+    INSERT INTO notifications (organization_id, type, title, message, data)
+    VALUES (
+      NEW.organization_id,
+      'invoice_status_change',
+      'Invoice Status Updated',
+      'Invoice ' || NEW.invoice_number || ' status changed to ' || NEW.status,
+      jsonb_build_object('invoice_id', NEW.id, 'old_status', OLD.status, 'new_status', NEW.status)
+    );
   END IF;
 
-  RETURN has_access;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Trigger for invoice notifications
+DROP TRIGGER IF EXISTS invoice_notification_trigger ON invoices;
+CREATE TRIGGER invoice_notification_trigger
+  AFTER UPDATE ON invoices
+  FOR EACH ROW EXECUTE FUNCTION create_invoice_notification();
+
+-- Function to update recurring invoice next due dates
+CREATE OR REPLACE FUNCTION update_recurring_invoice_dates()
+RETURNS TRIGGER AS $$
+BEGIN
+  -- Calculate next due date based on frequency
+  NEW.next_due_date = CASE
+    WHEN NEW.frequency = 'weekly' THEN NEW.next_due_date + INTERVAL '7 days'
+    WHEN NEW.frequency = 'monthly' THEN NEW.next_due_date + INTERVAL '1 month'
+    WHEN NEW.frequency = 'quarterly' THEN NEW.next_due_date + INTERVAL '3 months'
+    WHEN NEW.frequency = 'yearly' THEN NEW.next_due_date + INTERVAL '1 year'
+    ELSE NEW.next_due_date
+  END;
+
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Function to generate invoices from recurring templates
+CREATE OR REPLACE FUNCTION generate_recurring_invoices()
+RETURNS void AS $$
+DECLARE
+  recurring_record RECORD;
+  new_invoice_id UUID;
+  item_record JSONB;
+BEGIN
+  -- Loop through active recurring invoices that are due
+  FOR recurring_record IN
+    SELECT * FROM recurring_invoices
+    WHERE is_active = true
+    AND next_due_date <= CURRENT_DATE
+    AND (end_date IS NULL OR next_due_date <= end_date)
+  LOOP
+    -- Generate new invoice number (you might want to customize this)
+    -- Create the invoice
+    INSERT INTO invoices (
+      organization_id,
+      invoice_number,
+      client_name,
+      client_email,
+      client_address,
+      status,
+      issue_date,
+      due_date,
+      created_by
+    ) VALUES (
+      recurring_record.organization_id,
+      'REC-' || recurring_record.id || '-' || to_char(CURRENT_DATE, 'YYYYMMDD'),
+      recurring_record.client_name,
+      recurring_record.client_email,
+      recurring_record.client_address,
+      'draft',
+      CURRENT_DATE,
+      CURRENT_DATE + INTERVAL '30 days', -- Default 30 days payment terms
+      recurring_record.created_by
+    ) RETURNING id INTO new_invoice_id;
+
+    -- Create invoice items from template
+    FOR item_record IN SELECT * FROM jsonb_array_elements(recurring_record.invoice_data->'items')
+    LOOP
+      INSERT INTO invoice_items (
+        invoice_id,
+        description,
+        quantity,
+        unit_price,
+        total
+      ) VALUES (
+        new_invoice_id,
+        item_record->>'description',
+        (item_record->>'quantity')::decimal,
+        (item_record->>'unitPrice')::decimal,
+        (item_record->>'total')::decimal
+      );
+    END LOOP;
+
+    -- Update the recurring invoice
+    UPDATE recurring_invoices
+    SET
+      last_generated_date = CURRENT_DATE,
+      next_due_date = CASE
+        WHEN frequency = 'weekly' THEN next_due_date + INTERVAL '7 days'
+        WHEN frequency = 'monthly' THEN next_due_date + INTERVAL '1 month'
+        WHEN frequency = 'quarterly' THEN next_due_date + INTERVAL '3 months'
+        WHEN frequency = 'yearly' THEN next_due_date + INTERVAL '1 year'
+        ELSE next_due_date
+      END,
+      updated_at = NOW()
+    WHERE id = recurring_record.id;
+
+  END LOOP;
 END;
 $$ LANGUAGE plpgsql;
 
 -- ===========================================
--- INITIAL DATA SEEDING
+-- VIEWS FOR APPLICATION USE
 -- ===========================================
 
--- Insert default features
-INSERT INTO features (id, name, description, category, icon, required, popular) VALUES
-('dashboard', 'Dashboard', 'Main dashboard with key metrics and insights', 'core', 'Home', true, false),
-('user_management', 'User Management', 'Manage team members and permissions', 'core', 'Users', true, false),
-('invoices', 'Invoice Management', 'Create and manage invoices', 'business', 'FileText', false, true),
-('expenses', 'Expense Tracking', 'Track business expenses', 'business', 'DollarSign', false, true),
-('reports', 'Reports & Analytics', 'Analytics and insights', 'business', 'BarChart3', false, true),
-('documents', 'Document Management', 'File storage and organization', 'addon', 'FolderOpen', false, true),
-('marketplace', 'Feature Marketplace', 'Discover and request new features', 'addon', 'Sparkles', false, true);
+DO $$
+BEGIN
+    RAISE NOTICE 'Creating useful views...';
 
--- Insert default translations (English)
-INSERT INTO translations (key, locale, value, namespace) VALUES
-('common.save', 'en', 'Save', 'common'),
-('common.cancel', 'en', 'Cancel', 'common'),
-('common.loading', 'en', 'Loading...', 'common'),
-('navigation.dashboard', 'en', 'Dashboard', 'navigation'),
-('navigation.marketplace', 'en', 'Marketplace', 'navigation'),
-('navigation.documents', 'en', 'Documents', 'navigation');
+    -- User organizations view - shows users with their organization details
+    CREATE OR REPLACE VIEW user_organizations AS
+    SELECT
+        u.id as user_id,
+        u.email,
+        u.full_name,
+        u.role,
+        u.language,
+        u.timezone,
+        u.created_at as user_created_at,
+        o.id as organization_id,
+        o.name as organization_name,
+        o.type as organization_type,
+        o.email as organization_email,
+        o.website,
+        o.default_language,
+        o.settings as organization_settings
+    FROM users u
+    JOIN organizations o ON u.organization_id = o.id
+    WHERE o.is_active = true;
 
--- Insert system settings
-INSERT INTO system_settings (key, value, description, is_public) VALUES
-('maintenance_mode', 'false', 'Enable maintenance mode', true),
-('max_file_size', '104857600', 'Maximum file upload size in bytes (100MB)', true),
-('supported_languages', '["en", "es", "fr", "de", "pt", "ar", "zh"]', 'Supported languages', true),
-('trial_duration_days', '14', 'Default trial duration in days', false);
+    -- Document summary view - aggregated document statistics
+    CREATE OR REPLACE VIEW document_summary AS
+    SELECT
+        d.organization_id,
+        COUNT(*) as total_documents,
+        SUM(d.size) as total_size_bytes,
+        COUNT(CASE WHEN d.is_deleted = false THEN 1 END) as active_documents,
+        COUNT(CASE WHEN d.is_deleted = true THEN 1 END) as deleted_documents,
+        COUNT(DISTINCT d.category) as categories_used,
+        MAX(d.created_at) as latest_upload
+    FROM documents d
+    GROUP BY d.organization_id;
 
--- ===========================================
--- VIEWS FOR COMMON QUERIES
--- ===========================================
+    -- Feature usage summary view - shows feature adoption across organizations
+    CREATE OR REPLACE VIEW feature_usage_summary AS
+    SELECT
+        f.id as feature_id,
+        f.name as feature_name,
+        f.category,
+        COUNT(DISTINCT fr.organization_id) as organizations_requesting,
+        COUNT(DISTINCT ft.organization_id) as organizations_trial,
+        COUNT(fr.id) as total_requests,
+        COUNT(ft.id) as total_trials,
+        AVG(ft.trial_duration_days) as avg_trial_duration
+    FROM features f
+    LEFT JOIN feature_requests fr ON f.id = fr.feature_id
+    LEFT JOIN feature_trials ft ON f.id = ft.feature_id
+    GROUP BY f.id, f.name, f.category;
 
--- User organizations view
-CREATE VIEW user_organizations AS
-SELECT
-  u.id as user_id,
-  u.email,
-  u.full_name,
-  u.role,
-  o.id as organization_id,
-  o.name as organization_name,
-  o.type as organization_type
-FROM users u
-JOIN organizations o ON u.organization_id = o.id
-WHERE u.is_active = true AND o.is_active = true;
+    RAISE NOTICE 'Views created successfully';
 
--- Document summary view
-CREATE VIEW document_summary AS
-SELECT
-  d.organization_id,
-  COUNT(*) as total_documents,
-  SUM(d.size) as total_size,
-  COUNT(CASE WHEN d.created_at >= NOW() - INTERVAL '30 days' THEN 1 END) as recent_uploads,
-  array_agg(DISTINCT d.category) as categories
-FROM documents d
-WHERE d.is_deleted = false
-GROUP BY d.organization_id;
-
--- Feature usage view
-CREATE VIEW feature_usage_summary AS
-SELECT
-  f.id as feature_id,
-  f.name as feature_name,
-  f.category,
-  COUNT(DISTINCT ufa.user_id) as active_users,
-  COUNT(DISTINCT ft.user_id) as trial_users,
-  COUNT(DISTINCT fr.id) as total_requests
-FROM features f
-LEFT JOIN user_feature_access ufa ON f.id = ufa.feature_id AND (ufa.expires_at IS NULL OR ufa.expires_at > NOW())
-LEFT JOIN feature_trials ft ON f.id = ft.feature_id AND ft.status = 'active'
-LEFT JOIN feature_requests fr ON f.id = fr.feature_id
-WHERE f.is_active = true
-GROUP BY f.id, f.name, f.category;
+EXCEPTION
+    WHEN OTHERS THEN
+        RAISE EXCEPTION 'Failed to create views: %', SQLERRM;
+END $$;
 
 -- ===========================================
--- COMMENTS FOR DOCUMENTATION
+-- SEED DATA
 -- ===========================================
 
-COMMENT ON TABLE organizations IS 'Core table for business organizations with multi-language support';
-COMMENT ON TABLE documents IS 'Document storage with R2/Cloudflare integration (tokens stored in url field)';
-COMMENT ON TABLE features IS 'Feature registry for marketplace functionality';
-COMMENT ON TABLE translations IS 'Internationalization support for multi-language platform';
-COMMENT ON TABLE user_activity_logs IS 'Audit trail for user actions and security monitoring';
+DO $$
+DECLARE
+  org_id UUID;
+  user_id UUID;
+BEGIN
+    RAISE NOTICE 'Adding seed data...';
+
+    -- Insert basic features for marketplace
+    INSERT INTO features (id, name, description, category, icon, required, popular, is_active) VALUES
+    ('invoices', 'Advanced Invoicing', 'Professional invoice management with templates and automation', 'core', 'receipt', true, true, true),
+    ('expenses', 'Expense Tracking', 'Track and categorize business expenses with AI analysis', 'finance', 'credit-card', false, true, true),
+    ('documents', 'Document Management', 'Secure file storage with 100MB upload limits and sharing', 'productivity', 'file-text', false, true, true),
+    ('marketplace', 'Feature Marketplace', 'Discover and request new platform features', 'addon', 'shopping-cart', false, false, true),
+    ('reports', 'Advanced Reporting', 'Comprehensive business analytics and insights', 'analytics', 'bar-chart', false, false, true),
+    ('teams', 'Team Collaboration', 'Multi-user access with role-based permissions', 'collaboration', 'users', false, true, true)
+    ON CONFLICT (id) DO NOTHING;
+
+    RAISE NOTICE 'Features seed data added';
+
+    -- Get the first organization and user (if they exist)
+    SELECT id INTO org_id FROM organizations LIMIT 1;
+    SELECT id INTO user_id FROM users LIMIT 1;
+
+    -- Only add seed data if we have an organization and user
+    IF org_id IS NOT NULL AND user_id IS NOT NULL THEN
+        -- Insert sample invoices
+        INSERT INTO invoices (
+          organization_id, invoice_number, client_name, client_email, client_address,
+          status, issue_date, due_date, subtotal, tax_rate, tax_amount, total, notes, created_by
+        ) VALUES
+        (
+          org_id, 'INV-2025-001', 'Acme Corporation', 'billing@acme.com', '123 Business St, City, State 12345',
+          'paid', '2025-09-01', '2025-09-30', 2500.00, 8.5, 212.50, 2712.50,
+          'Web development services for Q3 2025', user_id
+        ),
+        (
+          org_id, 'INV-2025-002', 'TechStart Inc', 'accounts@techstart.com', '456 Innovation Ave, Tech City, State 67890',
+          'sent', '2025-09-05', '2025-10-05', 1800.00, 8.5, 153.00, 1953.00,
+          'Mobile app development consultation', user_id
+        ),
+        (
+          org_id, 'INV-2025-003', 'Global Solutions Ltd', 'finance@globalsolutions.com', '789 Enterprise Blvd, Metro City, State 54321',
+          'overdue', '2025-08-15', '2025-09-14', 3200.00, 8.5, 272.00, 3472.00,
+          'Annual maintenance contract', user_id
+        ),
+        (
+          org_id, 'INV-2025-004', 'StartupXYZ', 'hello@startupxyz.com', '321 Launch St, Innovation City, State 98765',
+          'draft', '2025-09-10', '2025-10-10', 950.00, 8.5, 80.75, 1030.75,
+          'Logo design and branding package', user_id
+        ),
+        (
+          org_id, 'INV-2025-005', 'Enterprise Corp', 'procurement@enterprise.com', '654 Corporate Pkwy, Business City, State 13579',
+          'sent', '2025-09-08', '2025-10-08', 4200.00, 8.5, 357.00, 4557.00,
+          'Full-stack web application development', user_id
+        ) ON CONFLICT DO NOTHING;
+
+        -- Insert invoice items
+        INSERT INTO invoice_items (invoice_id, description, quantity, unit_price, total) VALUES
+        ((SELECT id FROM invoices WHERE invoice_number = 'INV-2025-001'), 'Frontend Development', 40, 50.00, 2000.00),
+        ((SELECT id FROM invoices WHERE invoice_number = 'INV-2025-001'), 'Backend API Development', 20, 25.00, 500.00),
+        ((SELECT id FROM invoices WHERE invoice_number = 'INV-2025-002'), 'Initial Consultation', 8, 100.00, 800.00),
+        ((SELECT id FROM invoices WHERE invoice_number = 'INV-2025-002'), 'Technical Specification Document', 1, 600.00, 600.00),
+        ((SELECT id FROM invoices WHERE invoice_number = 'INV-2025-002'), 'Project Timeline Planning', 4, 100.00, 400.00) ON CONFLICT DO NOTHING;
+
+        -- Insert sample reminders
+        INSERT INTO scheduled_reminders (
+          organization_id, title, description, reminder_type, scheduled_date,
+          next_run, is_active, assigned_to, created_by
+        ) VALUES
+        (
+          org_id, 'Review Monthly Expenses', 'Monthly review of all business expenses and categorize uncategorized items',
+          'monthly', '2025-09-30 09:00:00+00', '2025-09-30 09:00:00+00', true, user_id, user_id
+        ),
+        (
+          org_id, 'Send Invoice Reminders', 'Send payment reminders for invoices that are 7 days past due date',
+          'weekly', '2025-09-16 10:00:00+00', '2025-09-16 10:00:00+00', true, user_id, user_id
+        ),
+        (
+          org_id, 'Backup Database', 'Weekly database backup and integrity check',
+          'weekly', '2025-09-15 02:00:00+00', '2025-09-22 02:00:00+00', true, user_id, user_id
+        ) ON CONFLICT DO NOTHING;
+
+        RAISE NOTICE 'Seed data added successfully';
+    ELSE
+        RAISE NOTICE 'No existing organization/user found - skipping seed data';
+    END IF;
+
+EXCEPTION
+    WHEN OTHERS THEN
+        RAISE NOTICE 'Warning: Could not add seed data: %', SQLERRM;
+END $$;
+
+-- ===========================================
+-- FINAL SUCCESS MESSAGE
+-- ===========================================
+
+DO $$
+BEGIN
+    RAISE NOTICE '';
+    RAISE NOTICE 'ðŸŽ‰ Pot SaaS Database Setup Complete!';
+    RAISE NOTICE '';
+    RAISE NOTICE 'âœ… All tables created successfully';
+    RAISE NOTICE 'âœ… All indexes created for performance';
+    RAISE NOTICE 'âœ… Row Level Security policies applied';
+    RAISE NOTICE 'âœ… Functions and triggers installed';
+    RAISE NOTICE 'âœ… Sample data added (if organization exists)';
+    RAISE NOTICE '';
+    RAISE NOTICE 'ðŸš€ Your database is ready for the Pot SaaS application!';
+    RAISE NOTICE '';
+END $$;
+
 
 -- ===========================================
 -- FINAL NOTES
 -- ===========================================
-
 /*
+This enhanced database schema includes:
+
 This enhanced database schema includes:
 
 1. **Complete CRUD Support**: All entities have full create, read, update, delete operations
