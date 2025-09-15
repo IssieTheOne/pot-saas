@@ -57,10 +57,11 @@ export async function middleware(request: NextRequest) {
   // Refresh session if expired - required for Server Components
   await supabase.auth.getUser()
 
-  // Protect API routes (except auth routes and documents for testing)
+  // Protect API routes (except auth routes, documents, and invoices for now)
   if (request.nextUrl.pathname.startsWith('/api/') &&
       !request.nextUrl.pathname.startsWith('/api/auth/') &&
-      !request.nextUrl.pathname.startsWith('/api/documents')) {
+      !request.nextUrl.pathname.startsWith('/api/documents') &&
+      !request.nextUrl.pathname.startsWith('/api/invoices')) {
     const { data: { user } } = await supabase.auth.getUser()
 
     if (!user) {

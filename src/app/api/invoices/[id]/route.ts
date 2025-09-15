@@ -52,6 +52,17 @@ export async function PUT(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    // Get user's organization from the users table
+    const { data: userData, error: userDataError } = await supabase
+      .from('users')
+      .select('organization_id')
+      .eq('id', user.id)
+      .single()
+
+    if (userDataError || !userData) {
+      return NextResponse.json({ error: 'User organization not found' }, { status: 400 })
+    }
+
     const body = await request.json()
     const {
       invoice_number,
@@ -78,7 +89,7 @@ export async function PUT(
     }
 
     // Verify user belongs to the organization
-    if (user.user_metadata?.organization_id !== existingInvoice.organization_id) {
+    if (userData.organization_id !== existingInvoice.organization_id) {
       return NextResponse.json(
         { error: 'Unauthorized to update this invoice' },
         { status: 403 }
