@@ -2,6 +2,17 @@
 
 A comprehensive SaaS platform for Small and Medium Enterprises (SMEs) to manage their business operations efficiently with AI-powered automation and intelligent insights.
 
+## 🚀 **LIVE DEPLOYMENT**
+
+**Production URL**: https://pot-saas-56nj4yzio-issies-projects-7a16c2ac.vercel.app
+
+**Status**: ✅ **DEPLOYED & OPERATIONAL**
+- Authentication system active
+- Dashboard fully functional
+- Document management ready
+- Team collaboration enabled
+- Vercel CI/CD pipeline active
+
 ## ✨ Key Features
 
 ### 🤖 AI-Powered Capabilities
@@ -61,6 +72,9 @@ pot-saas/
 ```
 
 ## �🚀 Quick Start
+
+### 🌐 **Try Live Demo**
+Visit the [live deployment](https://pot-saas-56nj4yzio-issies-projects-7a16c2ac.vercel.app) to explore the platform immediately!
 
 ### Prerequisites
 - Node.js 18+ and npm

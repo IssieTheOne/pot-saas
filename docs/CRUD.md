@@ -4,6 +4,184 @@
 
 This document outlines all Create, Read, Update, Delete (CRUD) operations for the Pot SaaS platform. Each major entity includes detailed CRUD specifications including permissions, validation rules, and business logic.
 
+## ✅ **CURRENTLY IMPLEMENTED APIs**
+
+### Documents API
+
+#### Read Documents (GET)
+- **Endpoint**: `GET /api/documents`
+- **Status**: ✅ **IMPLEMENTED**
+- **Permissions**: Authenticated users
+- **Response**: Array of document objects with metadata
+- **Features**:
+  - Returns all documents ordered by upload date
+  - Includes file metadata (name, size, type, upload date)
+  - Error handling for database failures
+
+#### Create Documents (POST)
+- **Endpoint**: `POST /api/documents`
+- **Status**: ✅ **IMPLEMENTED**
+- **Permissions**: Authenticated users
+- **Required Fields**:
+  - `files` (File array, max 100MB per file)
+- **Business Logic**:
+  - File size validation (100MB limit)
+  - Cloudflare R2 storage integration
+  - Secure file URL generation
+  - Database record creation
+- **Features**:
+  - Multiple file upload support
+  - Automatic file type detection
+  - Secure storage with signed URLs
+
+#### Delete Documents (DELETE)
+- **Endpoint**: `DELETE /api/documents/{id}`
+- **Status**: ✅ **IMPLEMENTED**
+- **Permissions**: Document owner or organization admin
+- **Business Logic**:
+  - File deletion from Cloudflare R2
+  - Database record removal
+  - Permission validation
+
+### Invoices API
+
+#### List Invoices (GET)
+- **Endpoint**: `GET /api/invoices`
+- **Status**: ✅ **IMPLEMENTED**
+- **Permissions**: Organization members
+- **Query Parameters**:
+  - `status` (draft, sent, paid, overdue)
+  - `limit` (default: 50)
+  - `offset` (default: 0)
+- **Response**: Paginated list of invoices with items and payments
+- **Features**:
+  - Filtering by status
+  - Pagination support
+  - Includes related data (items, payments, creator info)
+
+#### Create Invoice (POST)
+- **Endpoint**: `POST /api/invoices`
+- **Status**: ✅ **IMPLEMENTED**
+- **Permissions**: Organization members
+- **Required Fields**:
+  - `organization_id`
+  - `invoice_number`
+  - `client_name`
+  - `issue_date`
+  - `due_date`
+  - `items[]` (array of line items)
+- **Optional Fields**:
+  - `client_email`, `client_address`, `tax_rate`, `notes`
+- **Business Logic**:
+  - Automatic total calculation
+  - Invoice item creation
+  - Tax calculation
+  - Validation of required fields
+
+#### Get Invoice (GET)
+- **Endpoint**: `GET /api/invoices/{id}`
+- **Status**: ✅ **IMPLEMENTED**
+- **Permissions**: Organization members
+- **Response**: Complete invoice with items, payments, and reminders
+- **Features**:
+  - Full invoice details
+  - Related payments and reminders
+  - Creator and assignee information
+
+#### Update Invoice (PUT)
+- **Endpoint**: `PUT /api/invoices/{id}`
+- **Status**: ✅ **IMPLEMENTED**
+- **Permissions**: Organization members
+- **Updatable Fields**: All invoice fields except ID
+- **Business Logic**:
+  - Automatic recalculation of totals
+  - Invoice item updates
+  - Status change validation
+
+#### Delete Invoice (DELETE)
+- **Endpoint**: `DELETE /api/invoices/{id}`
+- **Status**: ✅ **IMPLEMENTED**
+- **Permissions**: Organization members
+- **Business Logic**:
+  - Prevents deletion of paid invoices
+  - Cascade deletion of related records
+  - Audit trail preservation
+
+### Reminders API
+
+#### List Reminders (GET)
+- **Endpoint**: `GET /api/reminders`
+- **Status**: ✅ **IMPLEMENTED**
+- **Permissions**: Organization members
+- **Query Parameters**:
+  - `type` (one_time, daily, weekly, monthly, yearly)
+  - `status` (active/inactive)
+  - `limit`, `offset`
+- **Response**: Paginated list of reminders with execution history
+- **Features**:
+  - Filtering by type and status
+  - Includes assigned user and creator info
+  - Execution history tracking
+
+#### Create Reminder (POST)
+- **Endpoint**: `POST /api/reminders`
+- **Status**: ✅ **IMPLEMENTED**
+- **Permissions**: Organization members
+- **Required Fields**:
+  - `organization_id`
+  - `title`
+  - `reminder_type`
+- **Optional Fields**:
+  - `description`, `scheduled_date`, `recurrence_pattern`, `assigned_to`
+- **Business Logic**:
+  - Automatic next_run calculation
+  - Recurrence pattern validation
+  - Default scheduling logic
+
+#### Get Reminder (GET)
+- **Endpoint**: `GET /api/reminders/{id}`
+- **Status**: ✅ **IMPLEMENTED**
+- **Permissions**: Organization members
+- **Response**: Complete reminder with execution history
+- **Features**:
+  - Full reminder details
+  - Execution tracking
+  - Assignment information
+
+#### Update Reminder (PUT)
+- **Endpoint**: `PUT /api/reminders/{id}`
+- **Status**: ✅ **IMPLEMENTED**
+- **Permissions**: Organization members
+- **Business Logic**:
+  - Recalculates next_run for recurring reminders
+  - Updates execution tracking
+  - Status change handling
+
+#### Delete Reminder (DELETE)
+- **Endpoint**: `DELETE /api/reminders/{id}`
+- **Status**: ✅ **IMPLEMENTED**
+- **Permissions**: Organization members
+- **Business Logic**:
+  - Removes all associated executions
+  - Cleans up related notifications
+
+### Team Invitations API
+
+#### Create Team Invitation (POST)
+- **Endpoint**: `POST /api/team/invite`
+- **Status**: ✅ **IMPLEMENTED**
+- **Permissions**: Organization Owner/Manager
+- **Required Fields**:
+  - `email` (valid email format)
+  - `role` (enum: owner, manager, team_member)
+- **Business Logic**:
+  - Email validation and uniqueness checks
+  - Invitation token generation
+  - MailerSend email integration
+  - Database record creation
+
+## 📋 **PLANNED CRUD OPERATIONS**
+
 ## Core Business Entities
 
 ### Organizations
