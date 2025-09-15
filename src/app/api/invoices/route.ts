@@ -56,6 +56,13 @@ export async function POST(request: NextRequest) {
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     )
 
+    // Get authenticated user
+    const { data: { user }, error: userError } = await supabase.auth.getUser()
+
+    if (userError || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
     const body = await request.json()
     const {
       organization_id,
@@ -75,6 +82,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: 'Missing required fields' },
         { status: 400 }
+      )
+    }
+
+    // Verify user belongs to the organization
+    if (user.user_metadata?.organization_id !== organization_id) {
+      return NextResponse.json(
+        { error: 'Unauthorized to create invoices for this organization' },
+        { status: 403 }
       )
     }
 
@@ -99,7 +114,8 @@ export async function POST(request: NextRequest) {
         tax_rate,
         tax_amount,
         total,
-        notes
+        notes,
+        created_by: user.id
       })
       .select()
       .single()

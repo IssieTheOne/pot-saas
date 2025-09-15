@@ -36,6 +36,13 @@ export async function POST(request: NextRequest) {
 
     const formData = await request.formData()
 
+    // Get user from session (this should be handled by middleware, but let's get it explicitly)
+    const { data: { user }, error: userError } = await supabase.auth.getUser()
+
+    if (userError || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
     const files = formData.getAll('files') as File[]
     const uploadedDocuments = []
 
@@ -48,33 +55,29 @@ export async function POST(request: NextRequest) {
         )
       }
 
-      // Upload to Supabase Storage
-      const fileName = `${Date.now()}-${file.name}`
-      const { data: uploadData, error: uploadError } = await supabase.storage
-        .from('documents')
-        .upload(fileName, file)
+      // Generate unique filename
+      const fileExtension = file.name.split('.').pop()
+      const uniqueFileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExtension}`
 
-      if (uploadError) {
-        console.error('Error uploading file:', uploadError)
-        continue
-      }
-
-      // Get public URL
-      const { data: { publicUrl } } = supabase.storage
-        .from('documents')
-        .getPublicUrl(fileName)
+      // TODO: Implement proper R2 upload with AWS SDK or signed URLs
+      // For now, we'll just save metadata to database
+      const publicUrl = `https://placeholder-url.com/${uniqueFileName}` // Placeholder URL
 
       // Save document metadata to database
       const { data: document, error: dbError } = await supabase
         .from('documents')
         .insert({
-          name: file.name,
+          organization_id: user.user_metadata?.organization_id,
+          uploaded_by: user.id,
+          name: uniqueFileName,
+          original_name: file.name,
           type: file.type,
           size: file.size,
           url: publicUrl,
-          category: 'other', // Default category
+          storage_path: uniqueFileName,
+          category: 'other',
           tags: [],
-          uploaded_by: 'current_user' // This should be from auth
+          is_deleted: false
         })
         .select()
         .single()

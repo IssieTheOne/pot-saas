@@ -45,6 +45,13 @@ export async function PUT(
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     )
 
+    // Get authenticated user
+    const { data: { user }, error: userError } = await supabase.auth.getUser()
+
+    if (userError || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
     const body = await request.json()
     const {
       invoice_number,
@@ -59,7 +66,24 @@ export async function PUT(
       items = []
     } = body
 
-    // Calculate totals if items are provided
+    // First, get the invoice to verify ownership
+    const { data: existingInvoice, error: getInvoiceError } = await supabase
+      .from('invoices')
+      .select('organization_id')
+      .eq('id', params.id)
+      .single()
+
+    if (getInvoiceError || !existingInvoice) {
+      return NextResponse.json({ error: 'Invoice not found' }, { status: 404 })
+    }
+
+    // Verify user belongs to the organization
+    if (user.user_metadata?.organization_id !== existingInvoice.organization_id) {
+      return NextResponse.json(
+        { error: 'Unauthorized to update this invoice' },
+        { status: 403 }
+      )
+    }
     let updateData: any = {
       invoice_number,
       client_name,
