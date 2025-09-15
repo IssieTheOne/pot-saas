@@ -48,7 +48,7 @@ export async function POST(request: Request) {
       console.error('User details query exception:', userQueryError)
     }
 
-    // Create response with session cookies
+    // Create response - the middleware will handle setting cookies
     const response = NextResponse.json({
       user: {
         ...data.user,

@@ -36,8 +36,8 @@ export default function LoginPage() {
         throw new Error(data.error || 'Login failed')
       }
 
-      // Redirect to dashboard on success
-      router.push('/dashboard')
+      // Force a page refresh to ensure session is picked up
+      window.location.href = '/dashboard'
 
     } catch (err: any) {
       setError(err.message)
